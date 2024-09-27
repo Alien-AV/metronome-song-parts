@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Metronome App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- For mobile optimization -->
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -19,7 +20,7 @@
 
         <!-- Metronome Tab Content -->
         <div id="metronomeTab" class="tab-content active">
-            <div class="config-section">
+            <div class="config-section" id="configSection">
                 <h2>Configuration</h2>
                 <div class="form-group">
                     <label for="timeSignature">Time Signature:</label>
@@ -45,15 +46,16 @@
             <div class="metronome-section">
                 <button id="startButton">Start Metronome</button>
                 <div class="metronome-display">
-                    <div class="beat-indicator" id="beatIndicator"></div>
-                    <div class="info-display">
-                        <div id="currentPart"></div>
-                        <div id="currentMeasure"></div>
-                        <div id="currentBeat"></div>
-                        <div id="nextPartCountdown"></div>
+                    <div class="main-display">
+                        <div id="currentPart" class="large-text"></div>
+                        <div id="measureInfo" class="large-text"></div>
+                        <div id="beatInfo" class="large-text"></div>
+                        <div id="nextPartInfo" class="large-text"></div>
                     </div>
+                    <div class="beat-indicator" id="beatIndicator"></div>
+                    <!-- Progress bar with part separation -->
                     <div id="progressBar">
-                        <div id="progress"></div>
+                        <!-- Parts will be displayed here -->
                     </div>
                 </div>
             </div>
@@ -69,7 +71,9 @@
                         <option value="beep">Beep</option>
                         <option value="click">Click</option>
                         <option value="clap">Clap</option>
+                        <option value="custom">Custom</option>
                     </select>
+                    <input type="file" id="accentSoundFile" accept="audio/*" style="display:none;">
                 </div>
                 <div class="form-group">
                     <label for="normalSound">Normal Beat Sound:</label>
@@ -77,13 +81,29 @@
                         <option value="beep">Beep</option>
                         <option value="click">Click</option>
                         <option value="clap">Clap</option>
+                        <option value="custom">Custom</option>
                     </select>
+                    <input type="file" id="normalSoundFile" accept="audio/*" style="display:none;">
+                </div>
+                <h2>Save/Load Configuration</h2>
+                <div class="form-group">
+                    <button id="saveConfigButton">Save Configuration</button>
+                    <button id="loadConfigButton">Load Configuration</button>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <script src="app.js"></script>
+    <!-- Modal Dialogs -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <span id="modalClose" class="close">&times;</span>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>
