@@ -1,7 +1,7 @@
 // metronome.js
 
-import { playClick } from './audio.js';
-import { updateDisplay, updateProgressBar, collapseConfig } from './ui.js';
+import { playClick, resetCustomBuffers } from './audio.js';
+import { updateDisplay, updateProgressBar, collapseConfig, showModal } from './ui.js';
 import { getConfig } from './storage.js';
 
 export let isPlaying = false;
@@ -21,8 +21,8 @@ let timerID;
 export function initMetronome() {
     document.getElementById('startButton').addEventListener('click', startMetronome);
     document.addEventListener('keydown', function(event) {
-        if (event.code === 'Space' && event.target.tagName !== 'INPUT') {
-            event.preventDefault(); // Prevent scrolling
+        if (event.code === 'Space' && event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
+            event.preventDefault();
             startMetronome();
         }
     });
@@ -82,7 +82,7 @@ export function startMetronome() {
     if (!isPlaying) {
         const config = getConfig();
         if (!config.songParts.length) {
-            alert('Please add at least one song part.');
+            showModal('Please add at least one song part.');
             return;
         }
 

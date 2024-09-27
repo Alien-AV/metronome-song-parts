@@ -7,10 +7,10 @@ let config = {
     songParts: [],
     accentSoundType: 'beep',
     normalSoundType: 'beep',
+    offset: 0, // New property for sound offset
 };
 
 export function initStorage() {
-    // Initialize song parts
     resetSongStructure();
 }
 

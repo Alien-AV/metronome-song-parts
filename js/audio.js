@@ -5,21 +5,34 @@ import { getConfig } from './storage.js';
 let audioContext;
 let accentBuffer = null;
 let normalBuffer = null;
+let accentCustomBuffer = null;
+let normalCustomBuffer = null;
 
 export function initAudio() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
 }
 
 export function playClick(accent, time) {
-    const buffer = accent ? accentBuffer : normalBuffer;
-    if (buffer) {
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-        source.connect(audioContext.destination);
-        source.start(time);
+    const config = getConfig();
+    const soundType = accent ? config.accentSoundType : config.normalSoundType;
+
+    if (soundType === 'custom') {
+        const buffer = accent ? accentCustomBuffer : normalCustomBuffer;
+        if (buffer) {
+            playBuffer(buffer, time, config.offset);
+        } else {
+            playDefaultClick(accent, time);
+        }
     } else {
         playDefaultClick(accent, time);
     }
+}
+
+function playBuffer(buffer, time, offset = 0) {
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(time - offset); // Adjust time with offset
 }
 
 function playDefaultClick(accent, time) {
@@ -55,11 +68,16 @@ export function loadSoundFiles(inputId, file) {
     reader.onload = function(event) {
         audioContext.decodeAudioData(event.target.result, function(buffer) {
             if (inputId === 'accentSoundFile') {
-                accentBuffer = buffer;
+                accentCustomBuffer = buffer;
             } else if (inputId === 'normalSoundFile') {
-                normalBuffer = buffer;
+                normalCustomBuffer = buffer;
             }
         });
     };
     reader.readAsArrayBuffer(file);
+}
+
+export function resetCustomBuffers() {
+    accentCustomBuffer = null;
+    normalCustomBuffer = null;
 }

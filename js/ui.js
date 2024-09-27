@@ -1,6 +1,6 @@
 // ui.js
 
-import { startMetronome, isPlaying } from './metronome.js';
+import { isPlaying } from './metronome.js';
 import { getConfig, setConfig } from './storage.js';
 import { loadSoundFiles } from './audio.js';
 
@@ -60,7 +60,7 @@ export function collapseConfig(collapse) {
 function setupEventListeners() {
     document.getElementById('addPartButton').addEventListener('click', showAddPartModal);
     document.getElementById('resetButton').addEventListener('click', resetSongStructure);
-    document.getElementById('tempo').addEventListener('input', onTempoChange);
+    document.getElementById('tempo').addEventListener('blur', onTempoBlur);
     document.getElementById('timeSignature').addEventListener('change', onTimeSignatureChange);
 
     document.getElementById('accentSound').addEventListener('change', onSoundChange);
@@ -72,7 +72,7 @@ function setupEventListeners() {
     document.getElementById('loadConfigButton').addEventListener('click', loadConfiguration);
 }
 
-function onTempoChange() {
+function onTempoBlur() {
     let value = parseInt(this.value, 10);
     if (isNaN(value) || value < 20) {
         this.value = 20;
@@ -150,14 +150,14 @@ export function displaySongStructure() {
         removeButton.className = 'remove-part';
         removeButton.innerHTML = '&times;';
         removeButton.addEventListener('click', function() {
-            if (confirm('Are you sure you want to remove this song part?')) {
-                songParts.splice(index, 1);
-                recalculateMeasures();
-                setConfig({ songParts });
-                displaySongStructure();
-                createProgressBar();
-            }
-        });
+			showConfirmationModal('Are you sure you want to remove this song part?', () => {
+				songParts.splice(index, 1);
+				recalculateMeasures();
+				setConfig({ songParts });
+				displaySongStructure();
+				createProgressBar();
+			});
+		});
 
         partDiv.appendChild(nameInput);
         partDiv.appendChild(document.createTextNode(' Measures: '));
@@ -200,21 +200,23 @@ function resetSongStructure() {
 }
 
 export function updateDisplay(info) {
-    document.getElementById('currentPart').textContent = info.currentPart || '';
+    // Clear previous display
+    document.getElementById('currentPart').textContent = '';
+    document.getElementById('beatInfo').textContent = '';
+    document.getElementById('measureInfo').textContent = '';
+    document.getElementById('nextPartInfo').textContent = '';
+
+    if (info.currentPart) {
+        document.getElementById('currentPart').textContent = `Current: ${info.currentPart}`;
+    }
     if (info.currentBeat && info.beatsPerMeasure) {
         document.getElementById('beatInfo').textContent = `Beat: ${info.currentBeat}/${info.beatsPerMeasure}`;
-    } else {
-        document.getElementById('beatInfo').textContent = '';
     }
     if (info.currentMeasureInPart && info.totalMeasuresInPart) {
         document.getElementById('measureInfo').textContent = `Measure: ${info.currentMeasureInPart}/${info.totalMeasuresInPart}`;
-    } else {
-        document.getElementById('measureInfo').textContent = '';
     }
     if (info.nextPart) {
         document.getElementById('nextPartInfo').textContent = `Next: ${info.nextPart}`;
-    } else {
-        document.getElementById('nextPartInfo').textContent = '';
     }
 
     // Update beat indicator
@@ -235,6 +237,7 @@ export function updateDisplay(info) {
     }
 }
 
+
 export function createProgressBar() {
     const progressBar = document.getElementById('progressBar');
     progressBar.innerHTML = '';
@@ -247,11 +250,6 @@ export function createProgressBar() {
         const widthPercent = (part.measures / totalMeasures) * 100;
         partSegment.style.width = `${widthPercent}%`;
         partSegment.style.backgroundColor = getColorForPart(part.name);
-
-        const partLabel = document.createElement('div');
-        partLabel.className = 'part-label';
-        partLabel.textContent = part.name;
-        partSegment.appendChild(partLabel);
 
         const progressFill = document.createElement('div');
         progressFill.className = 'progress-fill';
@@ -285,19 +283,59 @@ export function updateProgressBar(currentMeasure) {
 }
 
 function getColorForPart(name) {
-    const colors = {
+    const colorMap = {
         'Pre-count': '#f8d7da',
         'Intro': '#d1e7dd',
         'Verse': '#cfe2ff',
-        'Verse 1': '#cfe2ff',
-        'Verse 2': '#b6d4fe',
         'Chorus': '#fff3cd',
-        'Chorus 1': '#fff3cd',
-        'Chorus 2': '#ffe69c',
-        'Outro': '#e2e3e5',
         'Bridge': '#d1cfe2',
+        'Outro': '#e2e3e5',
     };
-    return colors[name] || '#e9ecef';
+
+    // Extract prefix (e.g., "Verse" from "Verse 1")
+    const prefix = name.split(' ')[0];
+
+    if (colorMap[prefix]) {
+        return colorMap[prefix];
+    } else {
+        // Assign random color for other parts
+        return '#' + Math.floor(Math.random() * 16777215).toString(16);
+    }
+}
+
+export function showModal(message) {
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+    modalBody.innerHTML = `<p>${message}</p>`;
+    modal.style.display = 'block';
+
+    modalClose.onclick = function() {
+        modal.style.display = 'none';
+    };
+}
+
+export function showConfirmationModal(message, onConfirm) {
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+
+    modalBody.innerHTML = `<p>${message}</p>
+    <button id="confirmButton">Yes</button>
+    <button id="cancelButton">No</button>`;
+
+    modal.style.display = 'block';
+
+    document.getElementById('confirmButton').onclick = function() {
+        modal.style.display = 'none';
+        onConfirm();
+    };
+    document.getElementById('cancelButton').onclick = function() {
+        modal.style.display = 'none';
+    };
+    modalClose.onclick = function() {
+        modal.style.display = 'none';
+    };
 }
 
 function showAddPartModal() {
