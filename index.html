@@ -10,42 +10,78 @@
     <h1>Metronome App</h1>
 
     <div class="container">
-        <div class="config-section">
-            <h2>Configuration</h2>
-            <div class="form-group">
-                <label for="timeSignature">Time Signature:</label>
-                <select id="timeSignature">
-                    <option value="4/4">4/4</option>
-                    <option value="3/4">3/4</option>
-                    <option value="6/8">6/8</option>
-                    <!-- Add more time signatures as needed -->
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="tempo">Tempo (BPM):</label>
-                <input type="number" id="tempo" min="20" max="300" value="120">
-            </div>
-            <h3>Song Structure</h3>
-            <div id="songStructure">
-                <!-- Song parts will be listed here -->
-            </div>
-            <button id="addPartButton">Add Song Part</button>
+
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab-button active" data-tab="metronomeTab">Metronome</button>
+            <button class="tab-button" data-tab="configTab">Configuration</button>
         </div>
 
-        <div class="metronome-section">
-            <button id="startButton">Start Metronome</button>
-            <div class="metronome-display">
-                <div class="beat-indicator" id="beatIndicator"></div>
-                <div class="info-display">
-                    <div id="currentPart"></div>
-                    <div id="currentMeasure"></div>
-                    <div id="currentBeat"></div>
+        <!-- Metronome Tab Content -->
+        <div id="metronomeTab" class="tab-content active">
+            <div class="config-section">
+                <h2>Configuration</h2>
+                <div class="form-group">
+                    <label for="timeSignature">Time Signature:</label>
+                    <select id="timeSignature">
+                        <option value="4/4">4/4</option>
+                        <option value="3/4">3/4</option>
+                        <option value="6/8">6/8</option>
+                        <!-- Add more time signatures as needed -->
+                    </select>
                 </div>
-                <div id="progressBar">
-                    <div id="progress"></div>
+                <div class="form-group">
+                    <label for="tempo">Tempo (BPM):</label>
+                    <input type="number" id="tempo" min="20" max="300" value="120">
+                </div>
+                <h3>Song Structure</h3>
+                <div id="songStructure">
+                    <!-- Song parts will be listed here with inline editing -->
+                </div>
+                <button id="addPartButton">Add Song Part</button>
+                <button id="resetButton">Reset to Default Structure</button>
+            </div>
+
+            <div class="metronome-section">
+                <button id="startButton">Start Metronome</button>
+                <div class="metronome-display">
+                    <div class="beat-indicator" id="beatIndicator"></div>
+                    <div class="info-display">
+                        <div id="currentPart"></div>
+                        <div id="currentMeasure"></div>
+                        <div id="currentBeat"></div>
+                        <div id="nextPartCountdown"></div>
+                    </div>
+                    <div id="progressBar">
+                        <div id="progress"></div>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <!-- Configuration Tab Content -->
+        <div id="configTab" class="tab-content">
+            <div class="config-section">
+                <h2>Sound Configuration</h2>
+                <div class="form-group">
+                    <label for="accentSound">Accent Beat Sound:</label>
+                    <select id="accentSound">
+                        <option value="beep">Beep</option>
+                        <option value="click">Click</option>
+                        <option value="clap">Clap</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="normalSound">Normal Beat Sound:</label>
+                    <select id="normalSound">
+                        <option value="beep">Beep</option>
+                        <option value="click">Click</option>
+                        <option value="clap">Clap</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script src="app.js"></script>
