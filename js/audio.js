@@ -15,16 +15,17 @@ export function initAudio() {
 export function playClick(accent, time) {
     const config = getConfig();
     const soundType = accent ? config.accentSoundType : config.normalSoundType;
+    const offset = config.offset;
 
     if (soundType === 'custom') {
         const buffer = accent ? accentCustomBuffer : normalCustomBuffer;
         if (buffer) {
-            playBuffer(buffer, time, config.offset);
+            playBuffer(buffer, time, offset);
         } else {
-            playDefaultClick(accent, time);
+            playDefaultClick(accent, time, offset);
         }
     } else {
-        playDefaultClick(accent, time);
+        playDefaultClick(accent, time, offset);
     }
 }
 
@@ -35,19 +36,21 @@ function playBuffer(buffer, time, offset = 0) {
     source.start(time - offset); // Adjust time with offset
 }
 
-function playDefaultClick(accent, time) {
+function playDefaultClick(accent, time, offset = 0) {
     const osc = audioContext.createOscillator();
     const envelope = audioContext.createGain();
 
-    const soundType = accent ? getConfig().accentSoundType : getConfig().normalSoundType;
+    const config = getConfig(); // Get config to get sound type
+    const soundType = accent ? config.accentSoundType : config.normalSoundType;
+
     osc.frequency.value = getSoundFrequency(soundType);
     envelope.gain.value = 1;
 
     osc.connect(envelope);
     envelope.connect(audioContext.destination);
 
-    osc.start(time);
-    osc.stop(time + 0.05);
+    osc.start(time - offset);
+    osc.stop(time - offset + 0.05);
 }
 
 function getSoundFrequency(soundType) {

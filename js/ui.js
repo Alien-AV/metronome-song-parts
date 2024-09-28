@@ -10,6 +10,7 @@ export function initUI() {
     setupEventListeners();
     displaySongStructure();
     createProgressBar();
+    calculateTotalSongLength();
 }
 
 function setupTabs() {
@@ -70,6 +71,8 @@ function setupEventListeners() {
 
     document.getElementById('saveConfigButton').addEventListener('click', saveConfiguration);
     document.getElementById('loadConfigButton').addEventListener('click', loadConfiguration);
+
+    document.getElementById('offset').addEventListener('input', onOffsetChange);
 }
 
 function onTempoBlur() {
@@ -80,6 +83,7 @@ function onTempoBlur() {
         this.value = 300;
     }
     setConfig({ tempo: parseInt(this.value) });
+    calculateTotalSongLength();
 }
 
 function onTimeSignatureChange() {
@@ -89,6 +93,7 @@ function onTimeSignatureChange() {
         beatUnit: parseInt(timeSig[1], 10),
     });
     createProgressBar();
+    calculateTotalSongLength();
 }
 
 function onSoundChange(event) {
@@ -111,6 +116,16 @@ function onSoundFileUpload(event) {
     }
 }
 
+function onOffsetChange(event) {
+    const value = parseFloat(event.target.value);
+    if (isNaN(value) || value < 0) {
+        event.target.value = 0;
+        setConfig({ offset: 0 });
+    } else {
+        setConfig({ offset: value });
+    }
+}
+
 export function displaySongStructure() {
     const songParts = getConfig().songParts;
     const songStructureDiv = document.getElementById('songStructure');
@@ -126,6 +141,7 @@ export function displaySongStructure() {
             songParts[index].name = this.value;
             setConfig({ songParts });
             createProgressBar();
+            calculateTotalSongLength();
         });
 
         const measuresInput = document.createElement('input');
@@ -144,20 +160,22 @@ export function displaySongStructure() {
             setConfig({ songParts });
             displaySongStructure();
             createProgressBar();
+            calculateTotalSongLength();
         });
 
         const removeButton = document.createElement('span');
         removeButton.className = 'remove-part';
         removeButton.innerHTML = '&times;';
         removeButton.addEventListener('click', function() {
-			showConfirmationModal('Are you sure you want to remove this song part?', () => {
-				songParts.splice(index, 1);
-				recalculateMeasures();
-				setConfig({ songParts });
-				displaySongStructure();
-				createProgressBar();
-			});
-		});
+            showConfirmationModal('Are you sure you want to remove this song part?', () => {
+                songParts.splice(index, 1);
+                recalculateMeasures();
+                setConfig({ songParts });
+                displaySongStructure();
+                createProgressBar();
+                calculateTotalSongLength();
+            });
+        });
 
         partDiv.appendChild(nameInput);
         partDiv.appendChild(document.createTextNode(' Measures: '));
@@ -165,6 +183,8 @@ export function displaySongStructure() {
         partDiv.appendChild(removeButton);
         songStructureDiv.appendChild(partDiv);
     });
+
+    calculateTotalSongLength();
 }
 
 function recalculateMeasures() {
@@ -197,6 +217,7 @@ function resetSongStructure() {
     setConfig({ songParts: defaultSongParts });
     displaySongStructure();
     createProgressBar();
+    calculateTotalSongLength();
 }
 
 export function updateDisplay(info) {
@@ -401,10 +422,34 @@ function loadConfiguration() {
         document.getElementById('timeSignature').value = `${config.beatsPerMeasure}/${config.beatUnit}`;
         document.getElementById('accentSound').value = config.accentSoundType;
         document.getElementById('normalSound').value = config.normalSoundType;
+        document.getElementById('offset').value = config.offset;
         displaySongStructure();
         createProgressBar();
+        calculateTotalSongLength();
         alert('Configuration loaded successfully.');
     } else {
         alert('No saved configuration found.');
     }
+}
+
+function calculateTotalSongLength() {
+    const songParts = getConfig().songParts;
+    const totalMeasures = songParts.reduce((sum, part) => sum + part.measures, 0);
+    const tempo = getConfig().tempo;
+    const beatsPerMeasure = getConfig().beatsPerMeasure;
+    const beatUnit = getConfig().beatUnit;
+
+    // Calculate total beats
+    const totalBeats = totalMeasures * beatsPerMeasure;
+
+    // Calculate total seconds
+    const secondsPerBeat = (60 / tempo) * (4 / beatUnit); // Adjust for beat unit
+    const totalSeconds = totalBeats * secondsPerBeat;
+
+    // Convert totalSeconds to minutes and seconds
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+
+    const totalSongLengthDiv = document.getElementById('totalSongLength');
+    totalSongLengthDiv.textContent = `Total Song Length: ${totalMeasures} measures (${minutes} min ${seconds} sec)`;
 }

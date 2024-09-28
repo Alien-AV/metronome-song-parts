@@ -25,12 +25,12 @@ export function setConfig(newConfig) {
 function resetSongStructure() {
     const defaultSongParts = [
         { name: 'Pre-count', measures: 1 },
-        { name: 'Intro', measures: 4 },
-        { name: 'Verse 1', measures: 8 },
-        { name: 'Chorus 1', measures: 8 },
-        { name: 'Verse 2', measures: 8 },
-        { name: 'Chorus 2', measures: 8 },
-        { name: 'Outro', measures: 4 },
+        { name: 'Intro', measures: 8 },
+        { name: 'Verse 1', measures: 16 },
+        { name: 'Chorus 1', measures: 16 },
+        { name: 'Verse 2', measures: 16 },
+        { name: 'Chorus 2', measures: 16 },
+        { name: 'Outro', measures: 8 },
     ];
     let lastMeasure = 0;
     defaultSongParts.forEach(part => {

@@ -39,6 +39,7 @@
                 <div id="songStructure">
                     <!-- Song parts will be listed here with inline editing -->
                 </div>
+                <div id="totalSongLength"></div>
                 <button id="addPartButton">Add Song Part</button>
                 <button id="resetButton">Reset to Default Structure</button>
             </div>
@@ -84,6 +85,10 @@
                         <option value="custom">Custom</option>
                     </select>
                     <input type="file" id="normalSoundFile" accept="audio/*" style="display:none;">
+                </div>
+                <div class="form-group">
+                    <label for="offset">Sound Offset (seconds):</label>
+                    <input type="number" id="offset" step="0.001" min="0" value="0">
                 </div>
                 <h2>Save/Load Configuration</h2>
                 <div class="form-group">
