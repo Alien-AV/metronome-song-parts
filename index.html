@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Metronome App</title>
+    <title>JamSync Metronome App</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
-    <h1>Metronome App</h1>
+    <h1>JamSync Metronome App</h1>
 
     <div class="container">
 
@@ -69,30 +69,40 @@
                 <div class="form-group">
                     <label for="accentSound">Accent Beat Sound:</label>
                     <select id="accentSound">
-                        <option value="beep">Beep</option>
-                        <option value="click">Click</option>
-                        <option value="clap">Clap</option>
-                        <option value="custom">Custom</option>
+                        <option value="default">Default Sound</option>
+                        <option value="generated">Generated Beep</option>
+                        <option value="custom">Custom Sound</option>
                     </select>
                     <input type="file" id="accentSoundFile" accept="audio/*" style="display:none;">
+                    <div class="offset-group">
+                        <label for="accentOffset">Accent Sound Offset (seconds):</label>
+                        <input type="number" id="accentOffset" step="0.001" value="0">
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="normalSound">Normal Beat Sound:</label>
                     <select id="normalSound">
-                        <option value="beep">Beep</option>
-                        <option value="click">Click</option>
-                        <option value="clap">Clap</option>
-                        <option value="custom">Custom</option>
+                        <option value="default">Default Sound</option>
+                        <option value="generated">Generated Beep</option>
+                        <option value="custom">Custom Sound</option>
                     </select>
                     <input type="file" id="normalSoundFile" accept="audio/*" style="display:none;">
-                </div>
-                <div class="form-group">
-                    <label for="offset">Sound Offset (seconds):</label>
-                    <input type="number" id="offset" step="0.001" min="0" value="0">
+                    <div class="offset-group">
+                        <label for="normalOffset">Normal Sound Offset (seconds):</label>
+                        <input type="number" id="normalOffset" step="0.001" value="0">
+                    </div>
                 </div>
                 <h2>Save/Load Configuration</h2>
                 <div class="form-group">
+                    <label for="profileName">Profile Name:</label>
+                    <input type="text" id="profileName" placeholder="Enter profile name">
                     <button id="saveConfigButton">Save Configuration</button>
+                </div>
+                <div class="form-group">
+                    <label for="profileList">Load Profile:</label>
+                    <select id="profileList">
+                        <!-- Options will be populated dynamically -->
+                    </select>
                     <button id="loadConfigButton">Load Configuration</button>
                 </div>
             </div>

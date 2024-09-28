@@ -1,6 +1,6 @@
 // metronome.js
 
-import { playClick, resetCustomBuffers } from './audio.js';
+import { playClick } from './audio.js';
 import { updateDisplay, updateProgressBar, collapseConfig, showModal } from './ui.js';
 import { getConfig } from './storage.js';
 
@@ -13,10 +13,8 @@ let songParts = [];
 let currentPartIndex = 0;
 let currentMeasure = 1;
 let currentBeat = 1;
-let nextNoteTime = 0.0;
-let lookahead = 25.0;
-let scheduleAheadTime = 0.1;
-let timerID;
+let nextBeatTime = 0.0;
+const DEBUG = false; // Set to true to enable debug logs
 
 export function initMetronome() {
     document.getElementById('startButton').addEventListener('click', startMetronome);
@@ -34,28 +32,78 @@ function initAudioContext() {
     }
 }
 
-function scheduler() {
-    while (nextNoteTime < audioContext.currentTime + scheduleAheadTime) {
-        scheduleNote();
-        nextNote();
-    }
-}
+function playNote() {
+    if (!isPlaying) return;
 
-function scheduleNote() {
+    const config = getConfig();
     const accent = currentBeat === 1;
-    playClick(accent, nextNoteTime);
+    const offset = accent ? config.accentOffset : config.normalOffset;
 
-    // Update UI
-    updateDisplay({
-        currentPart: songParts[currentPartIndex].name,
-        currentBeat,
-        beatsPerMeasure,
-        currentMeasureInPart: currentMeasure - songParts[currentPartIndex].startMeasure + 1,
-        totalMeasuresInPart: songParts[currentPartIndex].measures,
-        nextPart: songParts[currentPartIndex + 1] ? songParts[currentPartIndex + 1].name : null,
-    });
+    const secondsPerBeat = 60.0 / tempo * (4 / beatUnit);
 
-    updateProgressBar(currentMeasure);
+    const now = audioContext.currentTime;
+
+    // Time of the beat
+    const beatTime = nextBeatTime;
+
+    // Capture current state before advancing
+    const beatNumber = currentBeat;
+    const measureNumber = currentMeasure;
+    const partIndex = currentPartIndex;
+    const currentPart = songParts[partIndex];
+
+    // Calculate times
+    let soundTime = beatTime + offset;
+    let visualTime = beatTime;
+
+    // Adjust nextBeatTime if there are negative offsets that would schedule soundTime in the past
+    if (soundTime < now) {
+        const timeAdjustment = now - soundTime;
+        nextBeatTime += timeAdjustment;
+        soundTime += timeAdjustment;
+        visualTime += timeAdjustment;
+    }
+
+    // Calculate delays from now
+    const soundDelay = soundTime - now;
+    const visualDelay = visualTime - now;
+
+    // Schedule sound
+    playClick(accent, soundTime);
+
+    if (DEBUG) {
+        console.log(`Scheduled sound (${accent ? 'accent' : 'normal'}) at ${soundTime.toFixed(3)}s (offset: ${offset})`);
+        console.log(`Scheduled visual update at ${visualTime.toFixed(3)}s`);
+    }
+
+    // Schedule visual update
+    setTimeout(() => {
+        if (!isPlaying) return;
+
+        updateDisplay({
+            currentPart: currentPart.name,
+            currentBeat: beatNumber,
+            beatsPerMeasure,
+            currentMeasureInPart: measureNumber - currentPart.startMeasure + 1,
+            totalMeasuresInPart: currentPart.measures,
+            nextPart: songParts[partIndex + 1] ? songParts[partIndex + 1].name : null,
+        });
+        updateProgressBar(measureNumber);
+
+        // Update beat indicator
+        const beatIndicator = document.getElementById('beatIndicator');
+        if (beatNumber === 1) {
+            beatIndicator.classList.remove('normal');
+            beatIndicator.classList.add('accent');
+        } else {
+            beatIndicator.classList.remove('accent');
+            beatIndicator.classList.add('normal');
+        }
+        setTimeout(() => {
+            beatIndicator.classList.remove('accent', 'normal');
+        }, 100);
+
+    }, visualDelay * 1000);
 
     // Advance beat and measure counters
     currentBeat++;
@@ -70,12 +118,14 @@ function scheduleNote() {
             }
         }
     }
-}
 
-function nextNote() {
-    const secondsPerBeat = 60.0 / tempo;
-    const beatDuration = secondsPerBeat * (4 / beatUnit);
-    nextNoteTime += beatDuration;
+    // Schedule next note
+    nextBeatTime += secondsPerBeat;
+
+    // Calculate delay until next beat
+    const delayUntilNextBeat = nextBeatTime - audioContext.currentTime;
+
+    setTimeout(playNote, delayUntilNextBeat * 1000);
 }
 
 export function startMetronome() {
@@ -88,6 +138,9 @@ export function startMetronome() {
 
         initAudioContext();
 
+        // Start AudioContext on user interaction
+        audioContext.resume();
+
         // Get configuration
         tempo = config.tempo;
         beatsPerMeasure = config.beatsPerMeasure;
@@ -98,13 +151,22 @@ export function startMetronome() {
         currentPartIndex = 0;
         currentMeasure = 1;
         currentBeat = 1;
-        nextNoteTime = audioContext.currentTime + 0.05;
 
         isPlaying = true;
-        timerID = setInterval(scheduler, lookahead);
-
         collapseConfig(true);
         document.getElementById('startButton').textContent = 'Stop Metronome';
+
+        const now = audioContext.currentTime;
+        nextBeatTime = now + 0.1;
+
+        // Adjust nextBeatTime if there are negative offsets
+        const minOffset = Math.min(config.accentOffset, config.normalOffset);
+        if (minOffset < 0) {
+            nextBeatTime += Math.abs(minOffset);
+        }
+
+        playNote();
+
     } else {
         stopMetronome();
     }
@@ -112,7 +174,11 @@ export function startMetronome() {
 
 function stopMetronome() {
     isPlaying = false;
-    clearInterval(timerID);
+    // Stop all scheduled timeouts
+    let id = window.setTimeout(function() {}, 0);
+    while (id--) {
+        window.clearTimeout(id);
+    }
 
     collapseConfig(false);
     document.getElementById('startButton').textContent = 'Start Metronome';

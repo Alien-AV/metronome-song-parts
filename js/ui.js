@@ -1,7 +1,7 @@
 // ui.js
 
 import { isPlaying } from './metronome.js';
-import { getConfig, setConfig } from './storage.js';
+import { getConfig, setConfig, saveConfig, loadConfig, getSavedProfiles } from './storage.js';
 import { loadSoundFiles } from './audio.js';
 
 export function initUI() {
@@ -11,6 +11,7 @@ export function initUI() {
     displaySongStructure();
     createProgressBar();
     calculateTotalSongLength();
+    populateProfileList();
 }
 
 function setupTabs() {
@@ -72,7 +73,8 @@ function setupEventListeners() {
     document.getElementById('saveConfigButton').addEventListener('click', saveConfiguration);
     document.getElementById('loadConfigButton').addEventListener('click', loadConfiguration);
 
-    document.getElementById('offset').addEventListener('input', onOffsetChange);
+    document.getElementById('accentOffset').addEventListener('blur', onOffsetChange);
+    document.getElementById('normalOffset').addEventListener('blur', onOffsetChange);
 }
 
 function onTempoBlur() {
@@ -97,15 +99,16 @@ function onTimeSignatureChange() {
 }
 
 function onSoundChange(event) {
-    const soundType = event.target.id === 'accentSound' ? 'accentSoundType' : 'normalSoundType';
-    setConfig({ [soundType]: event.target.value });
+    const soundTypeKey = event.target.id === 'accentSound' ? 'accentSoundType' : 'normalSoundType';
+    const soundType = event.target.value;
+    setConfig({ [soundTypeKey]: soundType });
 
-    if (event.target.value === 'custom') {
-        const fileInputId = event.target.id === 'accentSound' ? 'accentSoundFile' : 'normalSoundFile';
-        document.getElementById(fileInputId).style.display = 'block';
+    const fileInputId = event.target.id === 'accentSound' ? 'accentSoundFile' : 'normalSoundFile';
+    const fileInput = document.getElementById(fileInputId);
+    if (soundType === 'custom') {
+        fileInput.style.display = 'block';
     } else {
-        const fileInputId = event.target.id === 'accentSound' ? 'accentSoundFile' : 'normalSoundFile';
-        document.getElementById(fileInputId).style.display = 'none';
+        fileInput.style.display = 'none';
     }
 }
 
@@ -117,13 +120,13 @@ function onSoundFileUpload(event) {
 }
 
 function onOffsetChange(event) {
-    const value = parseFloat(event.target.value);
-    if (isNaN(value) || value < 0) {
-        event.target.value = 0;
-        setConfig({ offset: 0 });
-    } else {
-        setConfig({ offset: value });
+    let value = parseFloat(event.target.value);
+    const offsetKey = event.target.id === 'accentOffset' ? 'accentOffset' : 'normalOffset';
+    if (isNaN(value)) {
+        value = 0;
+        event.target.value = value;
     }
+    setConfig({ [offsetKey]: value });
 }
 
 export function displaySongStructure() {
@@ -228,7 +231,7 @@ export function updateDisplay(info) {
     document.getElementById('nextPartInfo').textContent = '';
 
     if (info.currentPart) {
-        document.getElementById('currentPart').textContent = `Current: ${info.currentPart}`;
+        document.getElementById('currentPart').textContent = `${info.currentPart}`;
     }
     if (info.currentBeat && info.beatsPerMeasure) {
         document.getElementById('beatInfo').textContent = `Beat: ${info.currentBeat}/${info.beatsPerMeasure}`;
@@ -239,25 +242,7 @@ export function updateDisplay(info) {
     if (info.nextPart) {
         document.getElementById('nextPartInfo').textContent = `Next: ${info.nextPart}`;
     }
-
-    // Update beat indicator
-    const beatIndicator = document.getElementById('beatIndicator');
-    if (isPlaying) {
-        if (info.currentBeat === 1) {
-            beatIndicator.classList.remove('normal');
-            beatIndicator.classList.add('accent');
-        } else {
-            beatIndicator.classList.remove('accent');
-            beatIndicator.classList.add('normal');
-        }
-        setTimeout(() => {
-            beatIndicator.classList.remove('accent', 'normal');
-        }, 100);
-    } else {
-        beatIndicator.classList.remove('accent', 'normal');
-    }
 }
-
 
 export function createProgressBar() {
     const progressBar = document.getElementById('progressBar');
@@ -409,27 +394,50 @@ function showAddPartModal() {
 }
 
 function saveConfiguration() {
-    const config = getConfig();
-    localStorage.setItem('metronomeConfig', JSON.stringify(config));
+    const profileName = document.getElementById('profileName').value.trim();
+    if (!profileName) {
+        alert('Please enter a profile name.');
+        return;
+    }
+    saveConfig(profileName);
     alert('Configuration saved successfully.');
+    populateProfileList();
 }
 
 function loadConfiguration() {
-    const config = JSON.parse(localStorage.getItem('metronomeConfig'));
-    if (config) {
-        setConfig(config);
+    const profileList = document.getElementById('profileList');
+    const profileName = profileList.value;
+    if (!profileName) {
+        alert('Please select a profile to load.');
+        return;
+    }
+    if (loadConfig(profileName)) {
+        const config = getConfig();
         document.getElementById('tempo').value = config.tempo;
         document.getElementById('timeSignature').value = `${config.beatsPerMeasure}/${config.beatUnit}`;
         document.getElementById('accentSound').value = config.accentSoundType;
         document.getElementById('normalSound').value = config.normalSoundType;
-        document.getElementById('offset').value = config.offset;
+        document.getElementById('accentOffset').value = config.accentOffset;
+        document.getElementById('normalOffset').value = config.normalOffset;
         displaySongStructure();
         createProgressBar();
         calculateTotalSongLength();
         alert('Configuration loaded successfully.');
     } else {
-        alert('No saved configuration found.');
+        alert('Selected profile not found.');
     }
+}
+
+function populateProfileList() {
+    const profileList = document.getElementById('profileList');
+    profileList.innerHTML = '';
+    const profiles = getSavedProfiles();
+    profiles.forEach(profileName => {
+        const option = document.createElement('option');
+        option.value = profileName;
+        option.textContent = profileName;
+        profileList.appendChild(option);
+    });
 }
 
 function calculateTotalSongLength() {

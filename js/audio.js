@@ -3,73 +3,108 @@
 import { getConfig } from './storage.js';
 
 let audioContext;
-let accentBuffer = null;
-let normalBuffer = null;
 let accentCustomBuffer = null;
 let normalCustomBuffer = null;
+let accentDefaultBuffer = null;
+let normalDefaultBuffer = null;
+const DEBUG = false; // Set to true to enable debug logs
 
 export function initAudio() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    loadDefaultSounds();
+}
+
+export function getAudioContext() {
+    if (!audioContext) {
+        initAudio();
+    }
+    return audioContext;
+}
+
+function loadDefaultSounds() {
+    // Load default accent sound
+    fetch('sounds/accent.wav')
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => getAudioContext().decodeAudioData(arrayBuffer))
+        .then(buffer => {
+            accentDefaultBuffer = buffer;
+        });
+
+    // Load default normal sound
+    fetch('sounds/normal.wav')
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => getAudioContext().decodeAudioData(arrayBuffer))
+        .then(buffer => {
+            normalDefaultBuffer = buffer;
+        });
 }
 
 export function playClick(accent, time) {
     const config = getConfig();
     const soundType = accent ? config.accentSoundType : config.normalSoundType;
-    const offset = config.offset;
+
+    if (time < getAudioContext().currentTime) {
+        if (DEBUG) {
+            console.log(`Cannot schedule sound in the past. Current time: ${getAudioContext().currentTime.toFixed(3)}s, attempted time: ${time.toFixed(3)}s`);
+        }
+        return;
+    }
+
+    if (DEBUG) {
+        console.log(`playClick called at ${getAudioContext().currentTime.toFixed(3)}s, scheduled for ${time.toFixed(3)}s (${accent ? 'accent' : 'normal'})`);
+    }
 
     if (soundType === 'custom') {
         const buffer = accent ? accentCustomBuffer : normalCustomBuffer;
         if (buffer) {
-            playBuffer(buffer, time, offset);
+            playBuffer(buffer, time);
         } else {
-            playDefaultClick(accent, time, offset);
+            playGeneratedClick(accent, time);
+        }
+    } else if (soundType === 'default') {
+        const buffer = accent ? accentDefaultBuffer : normalDefaultBuffer;
+        if (buffer) {
+            playBuffer(buffer, time);
+        } else {
+            playGeneratedClick(accent, time);
         }
     } else {
-        playDefaultClick(accent, time, offset);
+        playGeneratedClick(accent, time);
     }
 }
 
-function playBuffer(buffer, time, offset = 0) {
-    const source = audioContext.createBufferSource();
+function playBuffer(buffer, time) {
+    if (DEBUG) {
+        console.log(`playBuffer scheduled at ${time.toFixed(3)}s`);
+    }
+    const source = getAudioContext().createBufferSource();
     source.buffer = buffer;
-    source.connect(audioContext.destination);
-    source.start(time - offset); // Adjust time with offset
+    source.connect(getAudioContext().destination);
+    source.start(time);
 }
 
-function playDefaultClick(accent, time, offset = 0) {
-    const osc = audioContext.createOscillator();
-    const envelope = audioContext.createGain();
+function playGeneratedClick(accent, time) {
+    if (DEBUG) {
+        console.log(`playGeneratedClick scheduled at ${time.toFixed(3)}s`);
+    }
+    const osc = getAudioContext().createOscillator();
+    const envelope = getAudioContext().createGain();
 
-    const config = getConfig(); // Get config to get sound type
-    const soundType = accent ? config.accentSoundType : config.normalSoundType;
+    osc.frequency.value = accent ? 1000 : 800; // Different frequencies for accent and normal
 
-    osc.frequency.value = getSoundFrequency(soundType);
     envelope.gain.value = 1;
 
     osc.connect(envelope);
-    envelope.connect(audioContext.destination);
+    envelope.connect(getAudioContext().destination);
 
-    osc.start(time - offset);
-    osc.stop(time - offset + 0.05);
-}
-
-function getSoundFrequency(soundType) {
-    switch (soundType) {
-        case 'beep':
-            return 1000;
-        case 'click':
-            return 800;
-        case 'clap':
-            return 600;
-        default:
-            return 800;
-    }
+    osc.start(time);
+    osc.stop(time + 0.05);
 }
 
 export function loadSoundFiles(inputId, file) {
     const reader = new FileReader();
     reader.onload = function(event) {
-        audioContext.decodeAudioData(event.target.result, function(buffer) {
+        getAudioContext().decodeAudioData(event.target.result, function(buffer) {
             if (inputId === 'accentSoundFile') {
                 accentCustomBuffer = buffer;
             } else if (inputId === 'normalSoundFile') {
