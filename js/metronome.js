@@ -120,35 +120,34 @@ function scheduleBeat(initialBeat = false) {
     const scheduleTime = initialBeat ? startTime : lastScheduledBeatTime + beatInterval;
     lastScheduledBeatTime = scheduleTime;
 
-    const isAccent = currentBeat === 0;
+    // Update beat counters before scheduling
+    currentBeat++;
+    if (currentBeat > config.beatsPerMeasure) {
+        currentBeat = 1;
+        currentMeasure++;
+        if (currentMeasure > config.songParts[currentPartIndex].measures) {
+            currentMeasure = 1;
+            currentPartIndex++;
+            if (currentPartIndex >= config.songParts.length) {
+                stopMetronome();
+                return;
+            }
+        }
+    }
+
+    const isAccent = currentBeat === 1;
     playClick(isAccent, scheduleTime);
 
     // Update visual representation
     updateDisplay({
         currentPart: config.songParts[currentPartIndex].name,
-        currentBeat: currentBeat + 1,
+        currentBeat: currentBeat,
         beatsPerMeasure: config.beatsPerMeasure,
-        currentMeasureInPart: currentMeasure + 1,
+        currentMeasureInPart: currentMeasure,
         totalMeasuresInPart: config.songParts[currentPartIndex].measures,
         nextPart: config.songParts.length > currentPartIndex + 1 ? config.songParts[currentPartIndex + 1].name : null,
     });
     updateProgressBar(currentMeasure);
-
-    // Update beat counters
-    currentBeat++;
-    if (currentBeat >= config.beatsPerMeasure) {
-        currentBeat = 0;
-        currentMeasure++;
-        if (currentMeasure >= config.songParts[currentPartIndex].measures) {
-            currentMeasure = 0;
-            currentPartIndex++;
-            if (currentPartIndex >= config.songParts.length) {
-                stopMetronome();
-                showModal("End of song.");
-                return;
-            }
-        }
-    }
 }
 
 function playClick(accent, time) {
