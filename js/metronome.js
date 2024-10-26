@@ -1,4 +1,4 @@
-// Redesigned metronome and audio integration for consistent scheduling without upfront allocation issues
+// Completely rewritten metronome code with proper synchronization for visual and audio beats
 
 import { updateDisplay, updateProgressBar, collapseConfig, showModal } from './ui.js';
 import { getConfig } from './storage.js';
@@ -6,12 +6,13 @@ import { getConfig } from './storage.js';
 export let isPlaying = false;
 let audioContext;
 let startTime = 0;
-let lastScheduleTime = 0;
+let lastScheduledBeatTime = 0;
 let currentMeasure = 0;
 let currentBeat = 0;
 let currentPartIndex = 0;
 let beatIntervalId = null;
 let config;
+let scheduledNodes = [];
 let accentCustomBuffer = null;
 let normalCustomBuffer = null;
 let accentDefaultBuffer = null;
@@ -33,6 +34,11 @@ export function initMetronome() {
 
 export function initAudio() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    document.addEventListener('click', () => {
+        if (audioContext.state === 'suspended') {
+            audioContext.resume();
+        }
+    });
     loadDefaultSounds();
 }
 
@@ -64,13 +70,15 @@ export function startMetronome() {
     if (isPlaying) return;
     isPlaying = true;
     startTime = audioContext.currentTime;
-    lastScheduleTime = startTime;
+    lastScheduledBeatTime = startTime;
     currentMeasure = 0;
     currentBeat = 0;
     currentPartIndex = 0;
     document.getElementById('startButton').textContent = 'Stop Metronome';
+
+    // Schedule the first beat immediately and update the visual display accordingly
     scheduleBeat(true);
-    beatIntervalId = setInterval(scheduleBeat, (60 / config.tempo) * 1000);
+    beatIntervalId = setInterval(scheduleBeatsInAdvance, 100);
 }
 
 export function stopMetronome() {
@@ -79,17 +87,43 @@ export function stopMetronome() {
     clearInterval(beatIntervalId);
     document.getElementById('startButton').textContent = 'Start Metronome';
     collapseConfig(true);
+
+    // Cancel all future scheduled nodes
+    scheduledNodes.forEach(node => {
+        try {
+            node.stop();
+            node.disconnect();
+        } catch (e) {
+            if (DEBUG) {
+                console.error('Error stopping scheduled node:', e);
+            }
+        }
+    });
+    scheduledNodes = [];
 }
 
-function scheduleBeat(firstBeat = false) {
+function scheduleBeatsInAdvance() {
     if (!isPlaying || currentPartIndex >= config.songParts.length) return;
 
-    const isAccent = currentBeat === 0;
-    const scheduleTime = firstBeat ? startTime : lastScheduleTime + (60 / config.tempo);
-    lastScheduleTime = scheduleTime; // Schedule sound 100ms in the future to avoid lag
+    const beatInterval = 60 / config.tempo;
+    const bufferSize = 2; // Schedule 2 seconds in advance
+    const currentTime = audioContext.currentTime;
+    const scheduleUntilTime = currentTime + bufferSize;
 
+    while (lastScheduledBeatTime + beatInterval <= scheduleUntilTime) {
+        scheduleBeat();
+    }
+}
+
+function scheduleBeat(initialBeat = false) {
+    const beatInterval = 60 / config.tempo;
+    const scheduleTime = initialBeat ? startTime : lastScheduledBeatTime + beatInterval;
+    lastScheduledBeatTime = scheduleTime;
+
+    const isAccent = currentBeat === 0;
     playClick(isAccent, scheduleTime);
 
+    // Update visual representation
     updateDisplay({
         currentPart: config.songParts[currentPartIndex].name,
         currentBeat: currentBeat + 1,
@@ -100,6 +134,7 @@ function scheduleBeat(firstBeat = false) {
     });
     updateProgressBar(currentMeasure);
 
+    // Update beat counters
     currentBeat++;
     if (currentBeat >= config.beatsPerMeasure) {
         currentBeat = 0;
@@ -117,6 +152,7 @@ function scheduleBeat(firstBeat = false) {
 }
 
 function playClick(accent, time) {
+    if (!isPlaying) return;
     const soundType = accent ? config.accentSoundType : config.normalSoundType;
 
     if (time < audioContext.currentTime) {
@@ -154,6 +190,7 @@ function playBuffer(buffer, time) {
     };
     source.buffer = buffer;
     source.connect(audioContext.destination);
+    scheduledNodes.push(source);
     source.start(time);
 }
 
@@ -174,6 +211,7 @@ function playGeneratedClick(accent, time) {
 
     osc.connect(envelope);
     envelope.connect(audioContext.destination);
+    scheduledNodes.push(osc);
 
     osc.start(time);
     osc.stop(time + 0.05);
