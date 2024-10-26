@@ -71,9 +71,6 @@ function setupEventListeners() {
 
     document.getElementById('saveConfigButton').addEventListener('click', saveConfiguration);
     document.getElementById('loadConfigButton').addEventListener('click', loadConfiguration);
-
-    document.getElementById('accentOffset').addEventListener('blur', onOffsetChange);
-    document.getElementById('normalOffset').addEventListener('blur', onOffsetChange);
 }
 
 function onTempoBlur() {
@@ -116,16 +113,6 @@ function onSoundFileUpload(event) {
     if (file) {
         loadSoundFiles(event.target.id, file);
     }
-}
-
-function onOffsetChange(event) {
-    let value = parseFloat(event.target.value);
-    const offsetKey = event.target.id === 'accentOffset' ? 'accentOffset' : 'normalOffset';
-    if (isNaN(value)) {
-        value = 0;
-        event.target.value = value;
-    }
-    setConfig({ [offsetKey]: value });
 }
 
 export function displaySongStructure() {
@@ -240,6 +227,25 @@ export function updateDisplay(info) {
     }
     if (info.nextPart) {
         document.getElementById('nextPartInfo').textContent = `Next: ${info.nextPart}`;
+    }
+    flashBeatIndicator(info.isAccent);
+}
+
+function flashBeatIndicator(isAccent) {
+    const beatIndicator = document.getElementById('beatIndicator');
+    if (!beatIndicator) return; // Safety check
+
+    // Remove any existing flash classes
+    beatIndicator.classList.remove('flash-accent', 'flash-normal');
+
+    // Trigger reflow to restart the animation
+    void beatIndicator.offsetWidth;
+
+    // Add the appropriate flash class
+    if (isAccent) {
+        beatIndicator.classList.add('flash-accent');
+    } else {
+        beatIndicator.classList.add('flash-normal');
     }
 }
 
@@ -416,8 +422,6 @@ function loadConfiguration() {
         document.getElementById('timeSignature').value = `${config.beatsPerMeasure}/${config.beatUnit}`;
         document.getElementById('accentSound').value = config.accentSoundType;
         document.getElementById('normalSound').value = config.normalSoundType;
-        document.getElementById('accentOffset').value = config.accentOffset;
-        document.getElementById('normalOffset').value = config.normalOffset;
         displaySongStructure();
         createProgressBar();
         calculateTotalSongLength();

@@ -44,7 +44,7 @@
                 <button id="resetButton">Reset to Default Structure</button>
             </div>
 
-            <div class="metronome-section">
+            <div class="metronome-section" id="metronome-section">
                 <button id="startButton">Start Metronome</button>
                 <div class="metronome-display">
                     <div class="main-display">
@@ -53,7 +53,7 @@
                         <div id="measureInfo" class="large-text bold-text"></div>
                         <div id="nextPartInfo" class="large-text"></div>
                     </div>
-                    <div class="beat-indicator" id="beatIndicator"></div>
+                    <div id="beatIndicator" class="beat-indicator"></div>
                     <!-- Progress bar without labels -->
                     <div id="progressBar">
                         <!-- Parts will be displayed here -->
@@ -74,10 +74,6 @@
                         <option value="custom">Custom Sound</option>
                     </select>
                     <input type="file" id="accentSoundFile" accept="audio/*" style="display:none;">
-                    <div class="offset-group">
-                        <label for="accentOffset">Accent Sound Offset (seconds):</label>
-                        <input type="number" id="accentOffset" step="0.001" value="0">
-                    </div>
                 </div>
                 <div class="form-group">
                     <label for="normalSound">Normal Beat Sound:</label>
@@ -87,10 +83,6 @@
                         <option value="custom">Custom Sound</option>
                     </select>
                     <input type="file" id="normalSoundFile" accept="audio/*" style="display:none;">
-                    <div class="offset-group">
-                        <label for="normalOffset">Normal Sound Offset (seconds):</label>
-                        <input type="number" id="normalOffset" step="0.001" value="0">
-                    </div>
                 </div>
                 <h2>Save/Load Configuration</h2>
                 <div class="form-group">

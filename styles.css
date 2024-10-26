@@ -149,15 +149,25 @@ input[type="number"], select, input[type="text"] {
     background-color: #6c757d;
     border-radius: 50%;
     margin: 0 auto;
-    transition: background-color 0.1s ease;
+    transition: background-color 0.1s ease-in-out;
 }
 
-.beat-indicator.accent {
-    background-color: #ff5722;
+@keyframes flashAccent {
+    0%, 100% { background-color: grey; }
+    50% { background-color: #53fa00; }
 }
 
-.beat-indicator.normal {
-    background-color: #2196f3;
+@keyframes flashNormal {
+    0%, 100% { background-color: grey; }
+    50% { background-color: #57b700; }
+}
+
+.beat-indicator.flash-accent {
+    animation: flashAccent 0.2s ease-in-out;
+}
+
+.beat-indicator.flash-normal {
+    animation: flashNormal 0.2s ease-in-out;
 }
 
 .large-text {

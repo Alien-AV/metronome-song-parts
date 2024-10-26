@@ -1,6 +1,6 @@
 // Completely rewritten metronome code with proper synchronization for visual and audio beats
 
-import { updateDisplay, updateProgressBar, collapseConfig, showModal } from './ui.js';
+import { updateDisplay, updateProgressBar, collapseConfig } from './ui.js';
 import { getConfig } from './storage.js';
 
 export let isPlaying = false;
@@ -17,6 +17,7 @@ let accentCustomBuffer = null;
 let normalCustomBuffer = null;
 let accentDefaultBuffer = null;
 let normalDefaultBuffer = null;
+let totalMeasuresPlayed = 0;
 const DEBUG = true; // Set to true to enable debug logs
 
 export function initMetronome() {
@@ -74,7 +75,9 @@ export function startMetronome() {
     currentMeasure = 0;
     currentBeat = 0;
     currentPartIndex = 0;
+    totalMeasuresPlayed = 0;
     document.getElementById('startButton').textContent = 'Stop Metronome';
+    collapseConfig(true);
 
     // Schedule the first beat immediately and update the visual display accordingly
     scheduleBeat(true);
@@ -86,7 +89,7 @@ export function stopMetronome() {
     isPlaying = false;
     clearInterval(beatIntervalId);
     document.getElementById('startButton').textContent = 'Start Metronome';
-    collapseConfig(true);
+    collapseConfig(false);
 
     // Cancel all future scheduled nodes
     scheduledNodes.forEach(node => {
@@ -125,6 +128,7 @@ function scheduleBeat(initialBeat = false) {
     if (currentBeat > config.beatsPerMeasure) {
         currentBeat = 1;
         currentMeasure++;
+        totalMeasuresPlayed++;
         if (currentMeasure > config.songParts[currentPartIndex].measures) {
             currentMeasure = 1;
             currentPartIndex++;
@@ -146,8 +150,9 @@ function scheduleBeat(initialBeat = false) {
         currentMeasureInPart: currentMeasure,
         totalMeasuresInPart: config.songParts[currentPartIndex].measures,
         nextPart: config.songParts.length > currentPartIndex + 1 ? config.songParts[currentPartIndex + 1].name : null,
+        isAccent: isAccent,
     });
-    updateProgressBar(currentMeasure);
+    updateProgressBar(totalMeasuresPlayed);
 }
 
 function playClick(accent, time) {
