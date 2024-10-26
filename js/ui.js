@@ -1,8 +1,7 @@
 // ui.js
 
-import { isPlaying } from './metronome.js';
 import { getConfig, setConfig, saveConfig, loadConfig, getSavedProfiles } from './storage.js';
-import { loadSoundFiles } from './audio.js';
+import { loadSoundFiles } from './metronome.js';
 
 export function initUI() {
     setupTabs();

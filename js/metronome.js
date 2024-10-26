@@ -1,187 +1,199 @@
-// metronome.js
+// Redesigned metronome and audio integration for consistent scheduling without upfront allocation issues
 
-import { playClick } from './audio.js';
 import { updateDisplay, updateProgressBar, collapseConfig, showModal } from './ui.js';
 import { getConfig } from './storage.js';
 
 export let isPlaying = false;
 let audioContext;
-let tempo = 120;
-let beatsPerMeasure = 4;
-let beatUnit = 4;
-let songParts = [];
+let startTime = 0;
+let lastScheduleTime = 0;
+let currentMeasure = 0;
+let currentBeat = 0;
 let currentPartIndex = 0;
-let currentMeasure = 1;
-let currentBeat = 1;
-let nextBeatTime = 0.0;
-const DEBUG = false; // Set to true to enable debug logs
+let beatIntervalId = null;
+let config;
+let accentCustomBuffer = null;
+let normalCustomBuffer = null;
+let accentDefaultBuffer = null;
+let normalDefaultBuffer = null;
+const DEBUG = true; // Set to true to enable debug logs
 
 export function initMetronome() {
-    document.getElementById('startButton').addEventListener('click', startMetronome);
-    document.addEventListener('keydown', function(event) {
+    config = getConfig();
+    initAudio();
+
+    document.getElementById('startButton').addEventListener('click', toggleMetronome);
+    document.addEventListener('keydown', function (event) {
         if (event.code === 'Space' && event.target.tagName !== 'INPUT' && event.target.tagName !== 'TEXTAREA') {
             event.preventDefault();
-            startMetronome();
+            toggleMetronome();
         }
     });
 }
 
-function initAudioContext() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+export function initAudio() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    loadDefaultSounds();
+}
+
+function loadDefaultSounds() {
+    fetch('sounds/accent.wav')
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+        .then(buffer => {
+            accentDefaultBuffer = buffer;
+        });
+
+    fetch('sounds/normal.wav')
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+        .then(buffer => {
+            normalDefaultBuffer = buffer;
+        });
+}
+
+export function toggleMetronome() {
+    if (isPlaying) {
+        stopMetronome();
+    } else {
+        startMetronome();
     }
 }
 
-function playNote() {
+export function startMetronome() {
+    if (isPlaying) return;
+    isPlaying = true;
+    startTime = audioContext.currentTime;
+    lastScheduleTime = startTime;
+    currentMeasure = 0;
+    currentBeat = 0;
+    currentPartIndex = 0;
+    document.getElementById('startButton').textContent = 'Stop Metronome';
+    scheduleBeat(true);
+    beatIntervalId = setInterval(scheduleBeat, (60 / config.tempo) * 1000);
+}
+
+export function stopMetronome() {
     if (!isPlaying) return;
+    isPlaying = false;
+    clearInterval(beatIntervalId);
+    document.getElementById('startButton').textContent = 'Start Metronome';
+    collapseConfig(true);
+}
 
-    const config = getConfig();
-    const accent = currentBeat === 1;
-    const offset = accent ? config.accentOffset : config.normalOffset;
+function scheduleBeat(firstBeat = false) {
+    if (!isPlaying || currentPartIndex >= config.songParts.length) return;
 
-    const secondsPerBeat = 60.0 / tempo * (4 / beatUnit);
+    const isAccent = currentBeat === 0;
+    const scheduleTime = firstBeat ? startTime : lastScheduleTime + (60 / config.tempo);
+    lastScheduleTime = scheduleTime; // Schedule sound 100ms in the future to avoid lag
 
-    const now = audioContext.currentTime;
+    playClick(isAccent, scheduleTime);
 
-    // Time of the beat
-    const beatTime = nextBeatTime;
+    updateDisplay({
+        currentPart: config.songParts[currentPartIndex].name,
+        currentBeat: currentBeat + 1,
+        beatsPerMeasure: config.beatsPerMeasure,
+        currentMeasureInPart: currentMeasure + 1,
+        totalMeasuresInPart: config.songParts[currentPartIndex].measures,
+        nextPart: config.songParts.length > currentPartIndex + 1 ? config.songParts[currentPartIndex + 1].name : null,
+    });
+    updateProgressBar(currentMeasure);
 
-    // Capture current state before advancing
-    const beatNumber = currentBeat;
-    const measureNumber = currentMeasure;
-    const partIndex = currentPartIndex;
-    const currentPart = songParts[partIndex];
-
-    // Calculate times
-    let soundTime = beatTime + offset;
-    let visualTime = beatTime;
-
-    // Adjust nextBeatTime if there are negative offsets that would schedule soundTime in the past
-    if (soundTime < now) {
-        const timeAdjustment = now - soundTime;
-        nextBeatTime += timeAdjustment;
-        soundTime += timeAdjustment;
-        visualTime += timeAdjustment;
-    }
-
-    // Calculate delays from now
-    const soundDelay = soundTime - now;
-    const visualDelay = visualTime - now;
-
-    // Schedule sound
-    playClick(accent, soundTime);
-
-    if (DEBUG) {
-        console.log(`Scheduled sound (${accent ? 'accent' : 'normal'}) at ${soundTime.toFixed(3)}s (offset: ${offset})`);
-        console.log(`Scheduled visual update at ${visualTime.toFixed(3)}s`);
-    }
-
-    // Schedule visual update
-    setTimeout(() => {
-        if (!isPlaying) return;
-
-        updateDisplay({
-            currentPart: currentPart.name,
-            currentBeat: beatNumber,
-            beatsPerMeasure,
-            currentMeasureInPart: measureNumber - currentPart.startMeasure + 1,
-            totalMeasuresInPart: currentPart.measures,
-            nextPart: songParts[partIndex + 1] ? songParts[partIndex + 1].name : null,
-        });
-        updateProgressBar(measureNumber);
-
-        // Update beat indicator
-        const beatIndicator = document.getElementById('beatIndicator');
-        if (beatNumber === 1) {
-            beatIndicator.classList.remove('normal');
-            beatIndicator.classList.add('accent');
-        } else {
-            beatIndicator.classList.remove('accent');
-            beatIndicator.classList.add('normal');
-        }
-        setTimeout(() => {
-            beatIndicator.classList.remove('accent', 'normal');
-        }, 100);
-
-    }, visualDelay * 1000);
-
-    // Advance beat and measure counters
     currentBeat++;
-    if (currentBeat > beatsPerMeasure) {
-        currentBeat = 1;
+    if (currentBeat >= config.beatsPerMeasure) {
+        currentBeat = 0;
         currentMeasure++;
-        if (currentMeasure > songParts[currentPartIndex].endMeasure) {
+        if (currentMeasure >= config.songParts[currentPartIndex].measures) {
+            currentMeasure = 0;
             currentPartIndex++;
-            if (currentPartIndex >= songParts.length) {
+            if (currentPartIndex >= config.songParts.length) {
                 stopMetronome();
+                showModal("End of song.");
                 return;
             }
         }
     }
-
-    // Schedule next note
-    nextBeatTime += secondsPerBeat;
-
-    // Calculate delay until next beat
-    const delayUntilNextBeat = nextBeatTime - audioContext.currentTime;
-
-    setTimeout(playNote, delayUntilNextBeat * 1000);
 }
 
-export function startMetronome() {
-    if (!isPlaying) {
-        const config = getConfig();
-        if (!config.songParts.length) {
-            showModal('Please add at least one song part.');
-            return;
+function playClick(accent, time) {
+    const soundType = accent ? config.accentSoundType : config.normalSoundType;
+
+    if (time < audioContext.currentTime) {
+        if (DEBUG) {
+            console.log(`Cannot schedule sound in the past. Current time: ${audioContext.currentTime.toFixed(3)}s, attempted time: ${time.toFixed(3)}s`);
         }
+        return;
+    }
 
-        initAudioContext();
+    if (DEBUG) {
+        console.log(`playClick called at ${audioContext.currentTime.toFixed(3)}s, scheduled for ${time.toFixed(3)}s (${accent ? 'accent' : 'normal'})`);
+    }
 
-        // Start AudioContext on user interaction
-        audioContext.resume();
+    let buffer;
+    if (soundType === 'custom') {
+        buffer = accent ? accentCustomBuffer : normalCustomBuffer;
+    } else if (soundType === 'default') {
+        buffer = accent ? accentDefaultBuffer : normalDefaultBuffer;
+    }
 
-        // Get configuration
-        tempo = config.tempo;
-        beatsPerMeasure = config.beatsPerMeasure;
-        beatUnit = config.beatUnit;
-        songParts = config.songParts;
-
-        // Initialize counters
-        currentPartIndex = 0;
-        currentMeasure = 1;
-        currentBeat = 1;
-
-        isPlaying = true;
-        collapseConfig(true);
-        document.getElementById('startButton').textContent = 'Stop Metronome';
-
-        const now = audioContext.currentTime;
-        nextBeatTime = now + 0.1;
-
-        // Adjust nextBeatTime if there are negative offsets
-        const minOffset = Math.min(config.accentOffset, config.normalOffset);
-        if (minOffset < 0) {
-            nextBeatTime += Math.abs(minOffset);
-        }
-
-        playNote();
-
+    if (buffer) {
+        playBuffer(buffer, time);
     } else {
-        stopMetronome();
+        playGeneratedClick(accent, time);
     }
 }
 
-function stopMetronome() {
-    isPlaying = false;
-    // Stop all scheduled timeouts
-    let id = window.setTimeout(function() {}, 0);
-    while (id--) {
-        window.clearTimeout(id);
+function playBuffer(buffer, time) {
+    if (DEBUG) {
+        console.log(`playBuffer scheduled at ${time.toFixed(3)}s`);
     }
+    const source = audioContext.createBufferSource();
+    source.onended = () => {
+        source.disconnect();
+    };
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(time);
+}
 
-    collapseConfig(false);
-    document.getElementById('startButton').textContent = 'Start Metronome';
-    updateDisplay({});
-    updateProgressBar(0);
+function playGeneratedClick(accent, time) {
+    if (DEBUG) {
+        console.log(`playGeneratedClick scheduled at ${time.toFixed(3)}s`);
+    }
+    const osc = audioContext.createOscillator();
+    const envelope = audioContext.createGain();
+
+    osc.onended = () => {
+        osc.disconnect();
+        envelope.disconnect();
+    };
+
+    osc.frequency.value = accent ? 1000 : 800;
+    envelope.gain.value = 1;
+
+    osc.connect(envelope);
+    envelope.connect(audioContext.destination);
+
+    osc.start(time);
+    osc.stop(time + 0.05);
+}
+
+export function loadSoundFiles(inputId, file) {
+    const reader = new FileReader();
+    reader.onload = function (event) {
+        audioContext.decodeAudioData(event.target.result, function (buffer) {
+            if (inputId === 'accentSoundFile') {
+                accentCustomBuffer = buffer;
+            } else if (inputId === 'normalSoundFile') {
+                normalCustomBuffer = buffer;
+            }
+        });
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+export function resetCustomBuffers() {
+    accentCustomBuffer = null;
+    normalCustomBuffer = null;
 }
